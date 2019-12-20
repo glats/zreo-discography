@@ -10,8 +10,9 @@ import (
 	"strings"
 )
 
+// Download will download file and put into a directory
 func Download(filepath string, url string) (err error) {
-	fmt.Printf("filepath: %s , url: %s\n", filepath, url)
+	fmt.Printf("Downloading: %s to %s\n", url, filepath)
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
@@ -40,10 +41,10 @@ func Download(filepath string, url string) (err error) {
 	return nil
 }
 
-// Unzip will decompress a zip archive, moving all files and folders
+// Unzip will decompress a zip archive, moving all files (only one depth)
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) ([]string, error) {
-
+	fmt.Printf("Unzipping: %s to %s\n", src, dest)
 	var filenames []string
 
 	r, err := zip.OpenReader(src)
@@ -53,26 +54,16 @@ func Unzip(src string, dest string) ([]string, error) {
 	defer r.Close()
 
 	for _, f := range r.File {
-
-		// Store filename/path for returning and using later on
-		fpath := filepath.Join(dest, f.Name)
-
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return filenames, fmt.Errorf("%s: illegal file path", fpath)
-		}
-
+		name := strings.Split(f.Name, "/")[len(strings.Split(f.Name, "/"))-1]
+		fpath := filepath.Join(dest, name)
 		filenames = append(filenames, fpath)
-		// I'll avoid first folder (is called oog, i don't need it)
-		if f.FileInfo().IsDir() {
-			//os.MkdirAll(fpath, os.ModePerm)
-			continue
-		}
-
-		// Make File
 		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 			return filenames, err
 		}
-
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, os.ModePerm)
+			continue
+		}
 		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			return filenames, err
@@ -85,7 +76,6 @@ func Unzip(src string, dest string) ([]string, error) {
 
 		_, err = io.Copy(outFile, rc)
 
-		// Close the file without defer to close before next iteration of loop
 		outFile.Close()
 		rc.Close()
 

@@ -27,22 +27,26 @@ func main() {
 		if 0 != strings.Compare("download", strings.ToLower(e.Text)) {
 			return
 		}
-		fmt.Printf("Main: link found: %q -> %s\n", e.Text, link)
-		childrenCollection.Visit(e.Request.AbsoluteURL(link))
+		abosulte := e.Request.AbsoluteURL(link)
+		fmt.Printf("Going' to %s\n", abosulte)
+		childrenCollection.Visit(abosulte)
 	})
 	childrenCollection.OnHTML("body", func(e *colly.HTMLElement) {
 		title := e.DOM.Find("div[class=album-title]").ChildrenFiltered("h1").Text()
 		link, _ := e.DOM.Find("div[class=col-md-9]").ChildrenFiltered("div[class=btn-group]").Children().Eq(1).Attr("href")
-		fmt.Printf("title: %s , link: %s\n", title, link)
 		u, _ := url.Parse(link)
 		zipfile := strings.Split(u.Path, "/")[len(strings.Split(u.Path, "/"))-1]
 		wg.Add(1)
 		go func(zipfile string, link string, title string, wg *sync.WaitGroup) {
 			defer wg.Done()
 			err := Download(filepath.Join("downloads", zipfile), link)
-			fmt.Printf("error: %s\n", err)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+			}
 			_, ziperr := Unzip(filepath.Join("downloads", zipfile), filepath.Join("disks", title))
-			fmt.Printf("ziperr: %s\n", ziperr)
+			if ziperr != nil {
+				fmt.Printf("ziperr: %s\n", ziperr)
+			}
 		}(zipfile, link, title, &wg)
 
 	})
